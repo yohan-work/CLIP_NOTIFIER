@@ -2,6 +2,10 @@
 
 피그마에서 클리핑(clip)으로 잘린 하단 요소들을 쉽게 식별하고 개발자에게 알려주는 플러그인입니다.
 
+<img width="1562" height="725" alt="image" src="https://github.com/user-attachments/assets/3ffac91c-ee68-49ff-b2b4-dc08ebd53ad4" />
+<img width="725" height="569" alt="image" src="https://github.com/user-attachments/assets/d1b86b87-df02-4989-abef-7bb5aec7ef1d" />
+
+
 ## 문제 해결
 
 ### 기존 문제점
