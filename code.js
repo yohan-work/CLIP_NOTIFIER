@@ -156,7 +156,7 @@ async function createIndicators() {
       
       // 파란 원형 배경
       const badge = figma.createEllipse();
-      badge.name = "클립 카운트 뱃지";
+      badge.name = "Badge";
       badge.resize(badgeSize, badgeSize);
       badge.x = frame.x + frame.width - badgeSize - 8;
       badge.y = frame.y + frame.height - badgeSize - 8;
@@ -167,7 +167,7 @@ async function createIndicators() {
 
       // 개수 텍스트
       const countText = figma.createText();
-      countText.name = "클립 개수";
+      countText.name = "Count";
       countText.characters = item.clippedChildren.length.toString();
       countText.fontSize = 10;
       countText.fills = [{
@@ -182,7 +182,7 @@ async function createIndicators() {
 
       // 그룹으로 묶기
       const group = figma.group([badge, countText], frame.parent);
-      group.name = "📍 심플 클립 인디케이터";
+      group.name = "Clip Alert";
       
       // 클릭 이벤트를 위한 메타데이터 저장
       group.setPluginData("frameId", item.frameId);
@@ -220,6 +220,9 @@ function removeIndicators() {
     allNodes.forEach(node => {
       // 우리가 만든 인디케이터인지 확인
       if (node.name && (
+        node.name.includes("Clip Alert") ||
+        node.name.includes("Badge") ||
+        node.name.includes("Count") ||
         node.name.includes("심플 클립 인디케이터") ||
         node.name.includes("토스 스타일 클립 인디케이터") ||
         node.name.includes("클립 알림 인디케이터") ||
@@ -441,6 +444,9 @@ function cleanupExistingIndicators() {
     allNodes.forEach(node => {
       // 우리가 만든 인디케이터인지 확인
       if (node.name && (
+        node.name.includes("Clip Alert") ||
+        node.name.includes("Badge") ||
+        node.name.includes("Count") ||
         node.name.includes("심플 클립 인디케이터") ||
         node.name.includes("토스 스타일 클립 인디케이터") ||
         node.name.includes("클립 알림 인디케이터") ||

@@ -239,6 +239,141 @@
       background: #1592e6;
     }
 
+    /* 리포트 섹션 스타일 */
+    .report-section {
+      margin-bottom: 16px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .report-header h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1d1d1d;
+    }
+
+    .report-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .report-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .report-btn:hover {
+      background: #5a6268;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 12px 8px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-number {
+      font-size: 18px;
+      font-weight: 700;
+      color: #dc3545;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: #6c757d;
+      font-weight: 500;
+    }
+
+    .priority-list h4 {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1d1d1d;
+    }
+
+    .priority-items {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .priority-item {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .priority-item:hover {
+      border-color: #18a0fb;
+      background: #f0f8ff;
+    }
+
+    .priority-info {
+      flex: 1;
+    }
+
+    .priority-frame {
+      font-weight: 600;
+      font-size: 10px;
+      color: #1d1d1d;
+    }
+
+    .priority-details {
+      font-size: 9px;
+      color: #6c757d;
+      margin-top: 2px;
+    }
+
+    .priority-severity {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: white;
+    }
+
+    .severity-high { background: #dc3545; }
+    .severity-medium { background: #fd7e14; }
+    .severity-low { background: #198754; }
+
     .frame-header {
       background: #f8f9fa;
       padding: 12px;
@@ -364,6 +499,41 @@
 
   <div class="frame-list" id="frameList"></div>
 
+  <!-- 리포트 섹션 -->
+  <div class="report-section" id="reportSection" style="display: none;">
+    <div class="report-header">
+      <h3>📊 클립 분석 리포트</h3>
+      <div class="report-actions">
+        <button class="report-btn" id="exportCsv">📄 CSV 내보내기</button>
+        <button class="report-btn" id="exportHtml">📋 HTML 리포트</button>
+      </div>
+    </div>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="totalFrames">0</div>
+        <div class="stat-label">클립된 프레임</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="totalElements">0</div>
+        <div class="stat-label">총 클립된 요소</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="avgClipHeight">0px</div>
+        <div class="stat-label">평균 클립 높이</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="maxClipHeight">0px</div>
+        <div class="stat-label">최대 클립 높이</div>
+      </div>
+    </div>
+
+    <div class="priority-list">
+      <h4>🔥 우선순위별 문제점</h4>
+      <div id="priorityList" class="priority-items"></div>
+    </div>
+  </div>
+
   <div class="empty-state" id="emptyState" style="display: none;">
     <div class="empty-icon">✅</div>
     <div><strong>클립된 콘텐츠가 없습니다!</strong></div>
@@ -415,6 +585,15 @@
       parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
     });
 
+    // 리포트 내보내기 이벤트 리스너
+    document.getElementById('exportCsv').addEventListener('click', () => {
+      exportToCsv(clippedData);
+    });
+
+    document.getElementById('exportHtml').addEventListener('click', () => {
+      exportToHtml(clippedData);
+    });
+
     // 컨트롤 버튼 상태 업데이트
     function updateControlButtons() {
       if (indicatorsVisible) {
@@ -441,12 +620,14 @@
       if (data.length === 0) {
         frameList.style.display = 'none';
         emptyState.style.display = 'block';
+        document.getElementById('reportSection').style.display = 'none';
         updateStatus('success', '클립된 콘텐츠가 발견되지 않았습니다.');
         return;
       }
 
       frameList.style.display = 'block';
       emptyState.style.display = 'none';
+      document.getElementById('reportSection').style.display = 'block';
       
       data.forEach(frame => {
         const frameElement = createFrameElement(frame);
@@ -455,6 +636,9 @@
 
       const totalClipped = data.reduce((sum, frame) => sum + frame.clippedCount, 0);
       updateStatus('warning', `${data.length}개 프레임에서 ${totalClipped}개의 클립된 요소를 발견했습니다.`);
+      
+      // 리포트 생성
+      generateReport(data);
     }
 
     // 개별 프레임 요소 생성
@@ -582,19 +766,298 @@
        updateStatus('info', '프레임을 임시로 확장하여 클립된 부분을 표시합니다...');
      }
 
-     // 확장 버튼 상태 업데이트
-     function updateExpandButtons(status) {
-       const expandBtns = document.querySelectorAll('.expand-btn');
-       expandBtns.forEach(btn => {
-         if (status === '확장됨') {
-           btn.textContent = '📐 원본 크기로 복원하기';
-           btn.style.background = '#22c55e';
-         } else if (status === '복원됨') {
-           btn.textContent = '📏 임시로 프레임 확장해서 보기';
-           btn.style.background = '#18a0fb';
-         }
-       });
-     }
+           // 확장 버튼 상태 업데이트
+      function updateExpandButtons(status) {
+        const expandBtns = document.querySelectorAll('.expand-btn');
+        expandBtns.forEach(btn => {
+          if (status === '확장됨') {
+            btn.textContent = '📐 원본 크기로 복원하기';
+            btn.style.background = '#22c55e';
+          } else if (status === '복원됨') {
+            btn.textContent = '📏 임시로 프레임 확장해서 보기';
+            btn.style.background = '#18a0fb';
+          }
+        });
+      }
+
+      // 리포트 분석 및 생성
+      function generateReport(data) {
+        const stats = analyzeClipData(data);
+        updateStatistics(stats);
+        generatePriorityList(data);
+      }
+
+      // 데이터 분석
+      function analyzeClipData(data) {
+        let totalElements = 0;
+        let allClipHeights = [];
+
+        data.forEach(frame => {
+          totalElements += frame.clippedCount;
+          frame.clippedChildren.forEach(child => {
+            allClipHeights.push(child.clippedHeight);
+          });
+        });
+
+        const avgClipHeight = allClipHeights.length > 0 
+          ? Math.round(allClipHeights.reduce((a, b) => a + b, 0) / allClipHeights.length)
+          : 0;
+        
+        const maxClipHeight = allClipHeights.length > 0 
+          ? Math.max(...allClipHeights)
+          : 0;
+
+        return {
+          totalFrames: data.length,
+          totalElements,
+          avgClipHeight,
+          maxClipHeight,
+          allClipHeights
+        };
+      }
+
+      // 통계 업데이트
+      function updateStatistics(stats) {
+        document.getElementById('totalFrames').textContent = stats.totalFrames;
+        document.getElementById('totalElements').textContent = stats.totalElements;
+        document.getElementById('avgClipHeight').textContent = stats.avgClipHeight + 'px';
+        document.getElementById('maxClipHeight').textContent = stats.maxClipHeight + 'px';
+      }
+
+      // 우선순위 목록 생성
+      function generatePriorityList(data) {
+        const priorityList = document.getElementById('priorityList');
+        priorityList.innerHTML = '';
+
+        // 프레임을 최대 클립 높이 순으로 정렬
+        const sortedFrames = [...data].sort((a, b) => {
+          const aMaxClip = Math.max(...a.clippedChildren.map(c => c.clippedHeight));
+          const bMaxClip = Math.max(...b.clippedChildren.map(c => c.clippedHeight));
+          return bMaxClip - aMaxClip;
+        });
+
+        sortedFrames.forEach(frame => {
+          const maxClipHeight = Math.max(...frame.clippedChildren.map(c => c.clippedHeight));
+          const severity = getSeverity(maxClipHeight);
+          
+          const item = document.createElement('div');
+          item.className = 'priority-item';
+          item.addEventListener('click', () => {
+            parent.postMessage({ 
+              pluginMessage: { 
+                type: 'focus-frame', 
+                frameId: frame.frameId 
+              } 
+            }, '*');
+          });
+
+          item.innerHTML = `
+            <div class="priority-info">
+              <div class="priority-frame">${frame.frameName}</div>
+              <div class="priority-details">${frame.clippedCount}개 요소, 최대 ${maxClipHeight}px 클립</div>
+            </div>
+            <div class="priority-severity severity-${severity.level}">${severity.label}</div>
+          `;
+
+          priorityList.appendChild(item);
+        });
+      }
+
+      // 심각도 계산
+      function getSeverity(clipHeight) {
+        if (clipHeight >= 100) {
+          return { level: 'high', label: '높음' };
+        } else if (clipHeight >= 50) {
+          return { level: 'medium', label: '중간' };
+        } else {
+          return { level: 'low', label: '낮음' };
+        }
+      }
+
+      // CSV 내보내기
+      function exportToCsv(data) {
+        if (!data || data.length === 0) {
+          updateStatus('warning', 'CSV로 내보낼 데이터가 없습니다.');
+          return;
+        }
+
+        const stats = analyzeClipData(data);
+        const now = new Date();
+        const timestamp = now.toLocaleString('ko-KR');
+        
+        let csvContent = `Clip Notifier 분석 리포트\n생성 일시,${timestamp}\n\n`;
+        
+        // 요약 통계
+        csvContent += `요약 통계\n`;
+        csvContent += `클립된 프레임 수,${stats.totalFrames}\n`;
+        csvContent += `총 클립된 요소 수,${stats.totalElements}\n`;
+        csvContent += `평균 클립 높이,${stats.avgClipHeight}px\n`;
+        csvContent += `최대 클립 높이,${stats.maxClipHeight}px\n\n`;
+        
+        // 상세 데이터
+        csvContent += `상세 데이터\n`;
+        csvContent += `프레임명,클립된 요소 수,요소명,요소 타입,클립된 높이(px),심각도\n`;
+        
+        data.forEach(frame => {
+          frame.clippedChildren.forEach((child, index) => {
+            const severity = getSeverity(child.clippedHeight);
+            if (index === 0) {
+              csvContent += `${frame.frameName},${frame.clippedCount},${child.name},${child.type},${child.clippedHeight},${severity.label}\n`;
+            } else {
+              csvContent += `,,${child.name},${child.type},${child.clippedHeight},${severity.label}\n`;
+            }
+          });
+        });
+
+        // 파일 다운로드
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `clip-analysis-${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        updateStatus('success', '📄 CSV 파일이 다운로드되었습니다.');
+      }
+
+      // HTML 리포트 내보내기
+      function exportToHtml(data) {
+        if (!data || data.length === 0) {
+          updateStatus('warning', 'HTML로 내보낼 데이터가 없습니다.');
+          return;
+        }
+
+        const stats = analyzeClipData(data);
+        const now = new Date();
+        const timestamp = now.toLocaleString('ko-KR');
+        
+        let htmlContent = `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clip Notifier 분석 리포트</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 40px; background: #f8f9fa; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { color: #1d1d1d; border-bottom: 3px solid #18a0fb; padding-bottom: 10px; }
+        h2 { color: #495057; margin-top: 30px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin: 20px 0; }
+        .stat-card { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #18a0fb; }
+        .stat-number { font-size: 24px; font-weight: bold; color: #dc3545; }
+        .stat-label { color: #6c757d; font-size: 14px; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        th { background: #18a0fb; color: white; }
+        .severity-high { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .severity-medium { background: #fd7e14; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .severity-low { background: #198754; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .timestamp { color: #6c757d; font-size: 14px; margin-bottom: 20px; }
+        .frame-section { margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Clip Notifier 분석 리포트</h1>
+        <div class="timestamp">생성 일시: ${timestamp}</div>
+        
+        <h2>📈 요약 통계</h2>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">${stats.totalFrames}</div>
+                <div class="stat-label">클립된 프레임</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${stats.totalElements}</div>
+                <div class="stat-label">총 클립된 요소</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${stats.avgClipHeight}px</div>
+                <div class="stat-label">평균 클립 높이</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${stats.maxClipHeight}px</div>
+                <div class="stat-label">최대 클립 높이</div>
+            </div>
+        </div>
+
+        <h2>🔥 우선순위별 문제점</h2>`;
+
+        // 우선순위 정렬된 프레임들
+        const sortedFrames = [...data].sort((a, b) => {
+          const aMaxClip = Math.max(...a.clippedChildren.map(c => c.clippedHeight));
+          const bMaxClip = Math.max(...b.clippedChildren.map(c => c.clippedHeight));
+          return bMaxClip - aMaxClip;
+        });
+
+        sortedFrames.forEach(frame => {
+          const maxClipHeight = Math.max(...frame.clippedChildren.map(c => c.clippedHeight));
+          const severity = getSeverity(maxClipHeight);
+          
+          htmlContent += `
+        <div class="frame-section">
+            <h3>${frame.frameName} <span class="severity-${severity.level}">${severity.label}</span></h3>
+            <p><strong>${frame.clippedCount}개 요소</strong>가 클립되어 있습니다. (최대 ${maxClipHeight}px)</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>요소명</th>
+                        <th>타입</th>
+                        <th>클립된 높이</th>
+                        <th>심각도</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+          
+          frame.clippedChildren.forEach(child => {
+            const childSeverity = getSeverity(child.clippedHeight);
+            htmlContent += `
+                    <tr>
+                        <td>${child.name}</td>
+                        <td>${child.type}</td>
+                        <td>${child.clippedHeight}px</td>
+                        <td><span class="severity-${childSeverity.level}">${childSeverity.label}</span></td>
+                    </tr>`;
+          });
+          
+          htmlContent += `
+                </tbody>
+            </table>
+        </div>`;
+        });
+
+        htmlContent += `
+        <h2>💡 권장사항</h2>
+        <ul>
+            <li><strong>높음</strong> 심각도: 즉시 수정이 필요합니다. 프레임 높이를 늘리거나 요소를 재배치하세요.</li>
+            <li><strong>중간</strong> 심각도: 검토가 필요합니다. 사용자 경험에 영향을 줄 수 있습니다.</li>
+            <li><strong>낮음</strong> 심각도: 모니터링하세요. 향후 콘텐츠 추가 시 문제가 될 수 있습니다.</li>
+        </ul>
+        
+        <div style="margin-top: 40px; text-align: center; color: #6c757d; font-size: 14px;">
+            Generated by Clip Notifier Plugin
+        </div>
+    </div>
+</body>
+</html>`;
+
+        // 파일 다운로드
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `clip-report-${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.html`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        updateStatus('success', '📋 HTML 리포트가 다운로드되었습니다.');
+      }
 
      // 초기 컨트롤 버튼 상태 설정
      updateControlButtons();
