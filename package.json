@@ -1,0 +1,49 @@
+{
+  "name": "clip-notifier-figma-plugin",
+  "version": "1.0.0",
+  "description": "피그마에서 클리핑으로 잘린 하단 요소들을 쉽게 식별하고 개발자에게 알려주는 플러그인",
+  "main": "code.js",
+  "scripts": {
+    "build": "echo 'Building Figma plugin...' && echo 'Plugin ready for import!'",
+    "dev": "echo 'Development mode - import manifest.json in Figma'",
+    "lint": "eslint *.js",
+    "format": "prettier --write *.js *.html *.json",
+    "validate": "echo 'Validating plugin structure...' && node validate.js",
+    "zip": "zip -r clip-notifier-plugin.zip manifest.json code.js ui.html README.md"
+  },
+  "keywords": [
+    "figma",
+    "plugin",
+    "design",
+    "development",
+    "clip",
+    "overflow",
+    "ui",
+    "ux",
+    "design-tools"
+  ],
+  "author": "CLIP_NOTIFIER Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/clip-notifier-figma-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/clip-notifier-figma-plugin/issues"
+  },
+  "homepage": "https://github.com/your-username/clip-notifier-figma-plugin#readme",
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.88.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  },
+  "figma": {
+    "id": "clip-notifier",
+    "name": "Clip Notifier",
+    "main": "code.js",
+    "ui": "ui.html"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+} 

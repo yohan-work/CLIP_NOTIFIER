@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), clipboard-write=(), display-capture=(), geolocation=(), accelerometer=(), gyroscope=(), magnetometer=(), payment=(), usb=()"  >
+  <title>Clip Notifier</title>
+  <script>
+    // 브라우저 권한 체크 방지
+    if (typeof navigator !== 'undefined' && navigator.permissions) {
+      const originalQuery = navigator.permissions.query;
+      navigator.permissions.query = function() {
+        return Promise.resolve({ state: 'denied' });
+      };
+    }
+
+    // 플러그인 종료 시 인디케이터 정리
+    window.addEventListener('beforeunload', function() {
+      parent.postMessage({ 
+        pluginMessage: { type: 'cleanup-before-close' } 
+      }, '*');
+    });
+
+    // 페이지 숨김 시에도 정리 (iOS 등에서 beforeunload가 동작하지 않을 때)
+    window.addEventListener('pagehide', function() {
+      parent.postMessage({ 
+        pluginMessage: { type: 'cleanup-before-close' } 
+      }, '*');
+    });
+
+    // 브라우저 창 닫힘 감지
+    window.addEventListener('unload', function() {
+      parent.postMessage({ 
+        pluginMessage: { type: 'cleanup-before-close' } 
+      }, '*');
+    });
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 12px;
+      background: #ffffff;
+      color: #1d1d1d;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1d1d1d;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .scan-btn {
+      background: #18a0fb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .scan-btn:hover {
+      background: #1592e6;
+    }
+
+    .hide-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: none; /* 초기에는 숨김 */
+    }
+
+    .hide-btn:hover {
+      background: #dc2626;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .control-btn {
+      background: #f0f0f0;
+      border: 1px solid #d9d9d9;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 160px;
+    }
+
+    .control-btn:hover {
+      background: #e0e0e0;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .control-btn.active {
+      background: #18a0fb;
+      color: white;
+      border-color: #18a0fb;
+      box-shadow: 0 2px 8px rgba(24, 160, 251, 0.3);
+    }
+
+    .status {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .status.warning {
+      background: #fff3cd;
+      border-color: #ffeaa7;
+      color: #856404;
+    }
+
+    .status.success {
+      background: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
+    }
+
+    .status.info {
+      background: #d1ecf1;
+      border-color: #bee5eb;
+      color: #0c5460;
+    }
+
+    .frame-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .frame-item {
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .frame-item:hover {
+      border-color: #18a0fb;
+    }
+
+    .frame-item.highlighted {
+      border-color: #18a0fb;
+      background: #f0f8ff;
+      box-shadow: 0 2px 8px rgba(24, 160, 251, 0.15);
+    }
+
+    .frame-details {
+      background: #e8f4fd;
+      border: 1px solid #b3d9ff;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 8px 12px 12px;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        max-height: 0;
+        padding: 0 12px;
+      }
+      to {
+        opacity: 1;
+        max-height: 100px;
+        padding: 12px;
+      }
+    }
+
+    .detail-header {
+      font-weight: 600;
+      color: #0066cc;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .detail-note {
+      font-size: 10px;
+      color: #4a5568;
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+
+    .expand-btn {
+      background: #18a0fb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+    }
+
+    .expand-btn:hover {
+      background: #1592e6;
+    }
+
+    .frame-header {
+      background: #f8f9fa;
+      padding: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .frame-header:hover {
+      background: #e9ecef;
+    }
+
+    .frame-title {
+      font-weight: 600;
+      color: #1d1d1d;
+      margin-bottom: 2px;
+    }
+
+    .frame-subtitle {
+      font-size: 10px;
+      color: #6c757d;
+    }
+
+    .frame-icon {
+      width: 16px;
+      height: 16px;
+      background: #ffc107;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: white;
+      font-weight: bold;
+    }
+
+    .clipped-items {
+      padding: 0 12px 12px;
+    }
+
+    .clipped-item {
+      background: #ffffff;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+
+    .clipped-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .clipped-name {
+      font-weight: 500;
+      color: #dc3545;
+      margin-bottom: 2px;
+    }
+
+    .clipped-details {
+      color: #6c757d;
+      font-size: 10px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: #6c757d;
+    }
+
+    .empty-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e5e5;
+      text-align: center;
+    }
+
+    .close-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .close-btn:hover {
+      background: #5a6268;
+    }
+
+    .loading {
+      text-align: center;
+      color: #6c757d;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔍 Clip Notifier</h1>
+    <div class="header-buttons">
+      <button class="hide-btn" id="hideIndicators">🧹 인디케이터 제거</button>
+      <button class="scan-btn" id="scanBtn">스캔</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="control-btn active" id="showIndicators">📍 인디케이터 표시</button>
+  </div>
+
+  <div class="status" id="status">
+    <div class="loading">클립된 요소들을 검색 중...</div>
+  </div>
+
+  <div class="frame-list" id="frameList"></div>
+
+  <div class="empty-state" id="emptyState" style="display: none;">
+    <div class="empty-icon">✅</div>
+    <div><strong>클립된 콘텐츠가 없습니다!</strong></div>
+    <div>모든 프레임의 콘텐츠가 정상적으로 표시되고 있습니다.</div>
+  </div>
+
+  <div class="footer">
+    <button class="close-btn" id="closeBtn">🧹 인디케이터 정리 후 닫기</button>
+  </div>
+
+  <script>
+    let clippedData = [];
+    let indicatorsVisible = false;
+
+    // DOM 요소들
+    const scanBtn = document.getElementById('scanBtn');
+    const showIndicatorsBtn = document.getElementById('showIndicators');
+    const hideIndicatorsBtn = document.getElementById('hideIndicators');
+    const status = document.getElementById('status');
+    const frameList = document.getElementById('frameList');
+    const emptyState = document.getElementById('emptyState');
+    const closeBtn = document.getElementById('closeBtn');
+
+    // 이벤트 리스너
+    scanBtn.addEventListener('click', () => {
+      parent.postMessage({ pluginMessage: { type: 'scan' } }, '*');
+      updateStatus('loading', '페이지 스캔 중... 대용량 파일의 경우 시간이 걸릴 수 있습니다.');
+      scanBtn.disabled = true;
+      scanBtn.textContent = '스캔 중...';
+    });
+
+    showIndicatorsBtn.addEventListener('click', () => {
+      if (!indicatorsVisible) {
+        parent.postMessage({ pluginMessage: { type: 'show-indicators' } }, '*');
+        indicatorsVisible = true;
+        updateControlButtons();
+        updateStatus('info', '인디케이터를 표시하고 있습니다...');
+      }
+    });
+
+    hideIndicatorsBtn.addEventListener('click', () => {
+      parent.postMessage({ pluginMessage: { type: 'hide-indicators' } }, '*');
+      indicatorsVisible = false;
+      updateControlButtons();
+      updateStatus('success', '🧹 모든 인디케이터가 완전히 제거되었습니다.');
+    });
+
+    closeBtn.addEventListener('click', () => {
+      parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
+    });
+
+    // 컨트롤 버튼 상태 업데이트
+    function updateControlButtons() {
+      if (indicatorsVisible) {
+        showIndicatorsBtn.classList.add('active');
+        showIndicatorsBtn.textContent = '✅ 인디케이터 표시됨';
+        hideIndicatorsBtn.style.display = 'block';
+      } else {
+        showIndicatorsBtn.classList.remove('active');
+        showIndicatorsBtn.textContent = '📍 인디케이터 표시';
+        hideIndicatorsBtn.style.display = 'none';
+      }
+    }
+
+    // 상태 메시지 업데이트
+    function updateStatus(type, message) {
+      status.className = `status ${type}`;
+      status.innerHTML = message;
+    }
+
+    // 프레임 목록 렌더링
+    function renderFrameList(data) {
+      frameList.innerHTML = '';
+      
+      if (data.length === 0) {
+        frameList.style.display = 'none';
+        emptyState.style.display = 'block';
+        updateStatus('success', '클립된 콘텐츠가 발견되지 않았습니다.');
+        return;
+      }
+
+      frameList.style.display = 'block';
+      emptyState.style.display = 'none';
+      
+      data.forEach(frame => {
+        const frameElement = createFrameElement(frame);
+        frameList.appendChild(frameElement);
+      });
+
+      const totalClipped = data.reduce((sum, frame) => sum + frame.clippedCount, 0);
+      updateStatus('warning', `${data.length}개 프레임에서 ${totalClipped}개의 클립된 요소를 발견했습니다.`);
+    }
+
+    // 개별 프레임 요소 생성
+    function createFrameElement(frame) {
+      const frameDiv = document.createElement('div');
+      frameDiv.className = 'frame-item';
+
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'frame-header';
+      headerDiv.addEventListener('click', () => {
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'focus-frame', 
+            frameId: frame.frameId 
+          } 
+        }, '*');
+      });
+
+      headerDiv.innerHTML = `
+        <div>
+          <div class="frame-title">${frame.frameName}</div>
+          <div class="frame-subtitle">${frame.clippedCount}개의 클립된 요소</div>
+        </div>
+        <div class="frame-icon">${frame.clippedCount}</div>
+      `;
+
+      const clippedItemsDiv = document.createElement('div');
+      clippedItemsDiv.className = 'clipped-items';
+
+      frame.clippedChildren.forEach(child => {
+        const childDiv = document.createElement('div');
+        childDiv.className = 'clipped-item';
+        childDiv.innerHTML = `
+          <div class="clipped-name">${child.name}</div>
+          <div class="clipped-details">
+            타입: ${child.type} | 클립된 높이: ${child.clippedHeight}px
+          </div>
+        `;
+        clippedItemsDiv.appendChild(childDiv);
+      });
+
+      frameDiv.appendChild(headerDiv);
+      frameDiv.appendChild(clippedItemsDiv);
+
+      return frameDiv;
+    }
+
+    // 플러그인 메시지 수신
+    onmessage = (event) => {
+      const { type, data, message } = event.data.pluginMessage;
+      
+      if (type === 'scan-started') {
+        updateStatus('loading', '페이지 분석을 시작합니다...');
+      } else if (type === 'clipped-elements') {
+        clippedData = data;
+        renderFrameList(data);
+        // 스캔 완료 시 버튼 복원
+        scanBtn.disabled = false;
+        scanBtn.textContent = '스캔';
+      } else if (type === 'indicators-created') {
+        updateControlButtons(); // 버튼 상태 업데이트
+        updateStatus('success', '✅ 인디케이터가 성공적으로 표시되었습니다! 파란 원을 클릭하면 상세 정보를 볼 수 있습니다.');
+      } else if (type === 'show-frame-details') {
+        showFrameDetails(data);
+        updateStatus('info', `📋 ${data.frameName}의 클립된 요소 상세 정보를 표시합니다.`);
+      } else if (type === 'frame-expanded') {
+        updateStatus('success', message);
+        updateExpandButtons('확장됨');
+      } else if (type === 'frame-restored') {
+        updateStatus('info', message);
+        updateExpandButtons('복원됨');
+      } else if (type === 'error') {
+        updateStatus('warning', message || '오류가 발생했습니다.');
+        // 에러 시에도 버튼 복원
+        scanBtn.disabled = false;
+        scanBtn.textContent = '스캔';
+      }
+    };
+
+    // 프레임 상세 정보 표시 함수
+    function showFrameDetails(frameData) {
+      // 기존 프레임 리스트에서 해당 프레임 찾기 및 하이라이트
+      const frameItems = document.querySelectorAll('.frame-item');
+      
+      frameItems.forEach(item => {
+        item.classList.remove('highlighted');
+        const header = item.querySelector('.frame-header');
+        const titleElement = header.querySelector('.frame-title');
+        
+        if (titleElement && titleElement.textContent === frameData.frameName) {
+          item.classList.add('highlighted');
+          
+                     // 상세 정보가 이미 확장되어 있지 않으면 확장
+           const detailsDiv = item.querySelector('.frame-details');
+           if (!detailsDiv) {
+             const newDetailsDiv = document.createElement('div');
+             newDetailsDiv.className = 'frame-details';
+             newDetailsDiv.innerHTML = `
+               <div class="detail-header">🔍 인디케이터 클릭으로 상세 정보 표시</div>
+               <div class="detail-note">총 ${frameData.clippedCount}개 요소가 하단에서 클립되었습니다</div>
+               <button class="expand-btn" onclick="expandFrame('${frameData.frameId}')">
+                 📏 임시로 프레임 확장해서 보기
+               </button>
+             `;
+             
+             // 기존 clipped-items 앞에 삽입
+             const clippedItems = item.querySelector('.clipped-items');
+             item.insertBefore(newDetailsDiv, clippedItems);
+           }
+          
+          // 스크롤해서 해당 항목이 보이도록
+          item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      });
+    }
+
+         // 프레임 임시 확장 함수
+     function expandFrame(frameId) {
+       parent.postMessage({ 
+         pluginMessage: { 
+           type: 'expand-frame-temporarily', 
+           frameId: frameId 
+         } 
+       }, '*');
+       updateStatus('info', '프레임을 임시로 확장하여 클립된 부분을 표시합니다...');
+     }
+
+     // 확장 버튼 상태 업데이트
+     function updateExpandButtons(status) {
+       const expandBtns = document.querySelectorAll('.expand-btn');
+       expandBtns.forEach(btn => {
+         if (status === '확장됨') {
+           btn.textContent = '📐 원본 크기로 복원하기';
+           btn.style.background = '#22c55e';
+         } else if (status === '복원됨') {
+           btn.textContent = '📏 임시로 프레임 확장해서 보기';
+           btn.style.background = '#18a0fb';
+         }
+       });
+     }
+
+     // 초기 컨트롤 버튼 상태 설정
+     updateControlButtons();
+  </script>
+</body>
+</html> 
